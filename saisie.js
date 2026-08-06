@@ -1,6 +1,6 @@
-// PrixTerrain — écran de saisie chez l'agriculteur.
-// Quatre champs visibles : agriculteur, fournisseur, produit, prix.
-// Date, unité et remarque sont derrière le bouton « Détails », replié au départ.
+// PrixTerrain — écran de saisie d'un prix.
+// Trois champs visibles : fournisseur, produit, prix accompagné de son unité.
+// Date et remarque sont derrière le bouton « Détails », replié au départ.
 
 (function (global) {
   'use strict';
@@ -181,10 +181,6 @@
       afficherAttente(charge[2]);
       A.surChangementFileAttente(afficherAttente);
 
-      var champAgriculteur = creerChampRecherche({
-        libelle: 'Agriculteur', table: 'agriculteur', exemple: "Nom de l'exploitation",
-        surCreation: function (nom, retour) { ouvrirAjout('agriculteur', nom, unites, familles, retour); }
-      });
       var champFournisseur = creerChampRecherche({
         libelle: 'Fournisseur', table: 'fournisseur', exemple: 'Nom du fournisseur',
         surCreation: function (nom, retour) { ouvrirAjout('fournisseur', nom, unites, familles, retour); }
@@ -199,7 +195,6 @@
         }
       });
 
-      zone.appendChild(champAgriculteur.element);
       zone.appendChild(champFournisseur.element);
       zone.appendChild(champProduit.element);
 
@@ -210,9 +205,12 @@
       saisiePrix.type = 'text';
       saisiePrix.inputMode = 'decimal';
       saisiePrix.placeholder = '0,00';
-      var etiquetteUnite = element('span', 'unite');
+      var listeUnites = element('select', 'saisie choix-unite');
+      listeUnites.appendChild(new Option('unité…', ''));
+      unites.forEach(function (u) { listeUnites.appendChild(new Option(u.libelle, u.code)); });
+      listeUnites.addEventListener('change', function () { uniteChoisie = listeUnites.value; });
       lignePrix.appendChild(saisiePrix);
-      lignePrix.appendChild(etiquetteUnite);
+      lignePrix.appendChild(listeUnites);
       champPrix.appendChild(lignePrix);
       zone.appendChild(champPrix);
 
@@ -222,10 +220,7 @@
         return uniteChoisie || (p && p.unite_code) || '';
       }
       function majUnite() {
-        var code = uniteRetenue();
-        var trouvee = null;
-        unites.forEach(function (u) { if (u.code === code) trouvee = u; });
-        etiquetteUnite.textContent = trouvee ? trouvee.libelle : 'unité à préciser';
+        listeUnites.value = uniteRetenue();
       }
 
       var repli = element('div', 'repli');
@@ -240,15 +235,6 @@
       champDate.appendChild(saisieDate);
       repli.appendChild(champDate);
 
-      var champUnite = element('div', 'champ');
-      champUnite.appendChild(element('span', 'etiquette', 'Ce prix correspond à'));
-      var listeUnites = element('select', 'saisie');
-      listeUnites.appendChild(new Option('à préciser', ''));
-      unites.forEach(function (u) { listeUnites.appendChild(new Option(u.libelle_long, u.code)); });
-      listeUnites.addEventListener('change', function () { uniteChoisie = listeUnites.value; majUnite(); });
-      champUnite.appendChild(listeUnites);
-      repli.appendChild(champUnite);
-
       var champRemarque = element('div', 'champ');
       champRemarque.appendChild(element('span', 'etiquette', 'Remarque'));
       var saisieRemarque = element('input', 'saisie');
@@ -261,7 +247,6 @@
         var ouvert = repli.style.display !== 'none';
         repli.style.display = ouvert ? 'none' : 'block';
         boutonDetails.textContent = ouvert ? 'Détails' : 'Masquer les détails';
-        if (!ouvert) listeUnites.value = uniteRetenue();
       });
       zone.appendChild(boutonDetails);
       zone.appendChild(repli);
@@ -280,20 +265,17 @@
       }
 
       zone.appendChild(bouton('enregistrer', 'Enregistrer ce relevé', function () {
-        var agriculteur = champAgriculteur.lire();
         var fournisseur = champFournisseur.lire();
         var produit = champProduit.lire();
-        if (!agriculteur) return signaler("Indiquez chez quel agriculteur ce prix a été relevé.");
         if (!fournisseur) return signaler('Indiquez le fournisseur.');
         if (!produit) return signaler('Indiquez le produit.');
         var valeur = Number(String(saisiePrix.value).replace(',', '.'));
         if (!isFinite(valeur) || valeur <= 0) return signaler('Indiquez un prix, remise déduite, hors taxes.');
-        if (!uniteRetenue()) return signaler("Ouvrez « Détails » et indiquez à quoi correspond ce prix : au litre, au kilo, à la tonne.");
+        if (!uniteRetenue()) return signaler('Indiquez à quoi correspond ce prix : au litre, au kilo, à la tonne.');
         if (saisieDate.value > aujourdhui()) return signaler("La date indiquée est postérieure à aujourd'hui.");
 
         A.enregistrerReleve({
           date_prix: saisieDate.value,
-          agriculteur_id: agriculteur.id,
           fournisseur_id: fournisseur.id,
           produit_id: produit.id,
           prix_unitaire_ht: valeur,

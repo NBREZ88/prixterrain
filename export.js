@@ -154,7 +154,7 @@
 
       zone.appendChild(element('p', 'titre-section', 'Les relevés un par un'));
       zone.appendChild(element('p', 'manquant-suite',
-        'Une ligne par relevé : date, agriculteur, fournisseur, produit, prix, unité, ' +
+        'Une ligne par relevé : date, fournisseur, produit, prix, unité, ' +
         'conseiller ayant saisi, remarque.'));
       zone.appendChild(bouton('enregistrer', 'Obtenir le fichier des relevés', function () {
         var choisis = selection();
@@ -181,12 +181,11 @@
     // Fichier 1 : les relevés
     // -----------------------------------------------------------------------
     function fichierReleves(choisis) {
-      var entetes = ['Date du prix', 'Agriculteur', 'Fournisseur', 'Produit', 'Famille', 'Segment',
+      var entetes = ['Date du prix', 'Fournisseur', 'Produit', 'Famille', 'Segment',
                      'Prix hors taxes', 'Unité', 'Saisi par', 'Saisi le', 'Remarque', 'État'];
 
       var lignes = choisis.map(function (c) {
         var r = c.releve;
-        var agriculteur = C.ficheConservee(contexte.agriculteurs, r.agriculteur_id);
         var fournisseur = C.ficheConservee(contexte.fournisseurs, r.fournisseur_id);
         var produit = C.ficheConservee(contexte.produits, r.produit_id);
         var famille = produit ? contexte.familles[produit.famille_code] : null;
@@ -195,7 +194,6 @@
 
         return [
           C.dateFrancaise(r.date_prix),
-          agriculteur ? agriculteur.nom : 'fiche non retrouvée',
           fournisseur ? fournisseur.nom : 'fiche non retrouvée',
           produit ? produit.nom : 'fiche non retrouvée',
           famille ? famille.libelle : '',
@@ -210,7 +208,7 @@
       });
 
       lignes.sort(function (a, b) {
-        if (a[3] !== b[3]) return a[3].localeCompare(b[3], 'fr');
+        if (a[2] !== b[2]) return a[2].localeCompare(b[2], 'fr');
         return a[0].split('/').reverse().join('').localeCompare(b[0].split('/').reverse().join(''));
       });
 

@@ -82,6 +82,7 @@
   .bouton-etroit { width: auto; padding: .7rem 1.1rem; font-size: 1rem; }
   .pied-reglages { margin-top: 1.5rem; }
   .etiquette-case { font-size: 1rem; }
+  .choix-unite { width: auto; min-width: 7rem; flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -249,7 +250,7 @@ if ('serviceWorker' in navigator) {
     var ecrans = [
       { nom: 'saisie',        libelle: 'Saisie',   afficher: A.afficherSaisie },
       { nom: 'consultation',  libelle: 'Prix',     afficher: A.afficherConsultation },
-      { nom: 'tiers',         libelle: 'Qui',      afficher: A.afficherTiers },
+      { nom: 'tiers',         libelle: 'Fournisseurs', afficher: A.afficherTiers },
       { nom: 'rapprochement', libelle: 'Doublons', afficher: A.afficherRapprochement },
       { nom: 'export',        libelle: 'Export',   afficher: A.afficherExport },
       { nom: 'reglages',      libelle: 'Réglages', afficher: A.afficherReglages, reserve: 'administrateur' },

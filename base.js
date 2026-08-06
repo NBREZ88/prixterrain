@@ -23,10 +23,12 @@
 
   // Ordre d'envoi : une fiche part avant le relevé qui la cite, et un relevé de
   // prix avant l'annulation qui le vise. La base refuse l'inverse.
-  var TABLES_FILE = ['agriculteur', 'fournisseur', 'produit', 'facteur_conversion', 'releve'];
+  var TABLES_FILE = ['fournisseur', 'produit', 'facteur_conversion', 'releve'];
 
   // Référentiels rechargés en entier à chaque échange : ils sont courts et
   // doivent rester disponibles hors réseau.
+  // agriculteur reste rapatrié : les relevés antérieurs au retrait de
+  // l'agriculteur le citent encore, et leur affichage doit rester lisible.
   var REFERENTIELS = ['famille_produit', 'unite_prix', 'reglage', 'profil',
                       'agriculteur', 'fournisseur', 'produit', 'facteur_conversion'];
 
@@ -37,7 +39,7 @@
     fournisseur:        ['id', 'nom', 'cree_par', 'appareil_emetteur', 'cree_le'],
     produit:            ['id', 'nom', 'famille_code', 'segment', 'unite_code', 'origine', 'cree_par', 'appareil_emetteur', 'cree_le'],
     facteur_conversion: ['id', 'produit_id', 'unite_source', 'unite_cible', 'facteur', 'saisi_par', 'appareil_emetteur', 'saisi_le'],
-    releve:             ['id', 'type', 'date_prix', 'agriculteur_id', 'fournisseur_id', 'produit_id',
+    releve:             ['id', 'type', 'date_prix', 'fournisseur_id', 'produit_id',
                          'prix_unitaire_ht', 'unite_code', 'commentaire', 'releve_annule_id',
                          'saisi_par', 'appareil_emetteur', 'saisi_le']
   };
@@ -265,7 +267,6 @@
         id: nouvelIdentifiant(),
         type: 'prix',
         date_prix: saisie.date_prix,
-        agriculteur_id: saisie.agriculteur_id,
         fournisseur_id: saisie.fournisseur_id,
         produit_id: saisie.produit_id,
         prix_unitaire_ht: saisie.prix_unitaire_ht,
@@ -286,7 +287,7 @@
       var ligne = {
         id: nouvelIdentifiant(),
         type: 'annulation',
-        date_prix: null, agriculteur_id: null, fournisseur_id: null, produit_id: null,
+        date_prix: null, fournisseur_id: null, produit_id: null,
         prix_unitaire_ht: null, unite_code: null,
         commentaire: motif || null,
         releve_annule_id: releveId,

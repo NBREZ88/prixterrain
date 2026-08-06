@@ -160,7 +160,6 @@
   }
 
   var COLONNE_RELEVE = {
-    agriculteur: 'agriculteur_id',
     fournisseur: 'fournisseur_id',
     produit: 'produit_id'
   };
@@ -217,9 +216,8 @@
   }
 
   var LIBELLE_TABLE = {
-    agriculteur: 'Agriculteurs',
-    fournisseur: 'Fournisseurs',
-    produit: 'Produits'
+    produit: 'Produits',
+    fournisseur: 'Fournisseurs'
   };
 
   function afficherRapprochement(zone, compte) {

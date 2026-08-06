@@ -1,4 +1,4 @@
-// PrixTerrain — consultation par agriculteur et par fournisseur.
+// PrixTerrain — consultation par fournisseur.
 //
 // Mêmes règles de calcul qu'à l'écran des prix par produit : seul le
 // regroupement change. Un bloc par produit, une moyenne par unité à
@@ -10,25 +10,15 @@
   var A = global.PrixTerrain;
 
   var TIERS = {
-    agriculteur: {
-      libelle: 'Agriculteur',
-      titre: 'Prix par agriculteur',
-      exemple: "Nom de l'exploitation",
-      table: 'agriculteurs',
-      colonne: 'agriculteur_id',
-      autreTable: 'fournisseurs',
-      autreColonne: 'fournisseur_id',
-      autreLibelle: 'Fournisseurs rencontrés'
-    },
     fournisseur: {
       libelle: 'Fournisseur',
       titre: 'Prix par fournisseur',
       exemple: 'Nom du fournisseur',
       table: 'fournisseurs',
       colonne: 'fournisseur_id',
-      autreTable: 'agriculteurs',
-      autreColonne: 'agriculteur_id',
-      autreLibelle: 'Agriculteurs concernés'
+      autreTable: 'profils',
+      autreColonne: 'saisi_par',
+      autreLibelle: 'Relevés saisis par'
     }
   };
 
@@ -37,7 +27,7 @@
     var element = C.element;
     var bouton = C.bouton;
 
-    var typeCourant = 'agriculteur';
+    var typeCourant = 'fournisseur';
     var contexte = null;
     var reglages = null;
 
@@ -48,13 +38,6 @@
       var bandeau = element('header', 'bandeau');
       bandeau.appendChild(element('h1', null, reglage.titre));
       zone.appendChild(bandeau);
-
-      var onglets = element('div', 'onglets');
-      Object.keys(TIERS).forEach(function (type) {
-        onglets.appendChild(bouton(type === typeCourant ? 'onglet actif' : 'onglet',
-          TIERS[type].libelle, function () { typeCourant = type; dessiner(); }));
-      });
-      zone.appendChild(onglets);
 
       var champ = element('div', 'champ');
       champ.appendChild(element('span', 'etiquette', reglage.libelle));

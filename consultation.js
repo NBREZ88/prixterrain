@@ -389,7 +389,7 @@
 
         if (!releves.length) {
           detail.appendChild(element('p', 'confirmation',
-            'Aucun relevé pour ce produit. Il figure au catalogue, personne ne l\'a encore relevé chez un agriculteur.'));
+            'Aucun relevé pour ce produit. Il figure au catalogue, son prix n\'a pas encore été relevé.'));
           return;
         }
 
@@ -412,7 +412,7 @@
         }
 
         resultat.lignes.forEach(function (ligne) {
-          detail.appendChild(carteGroupe(ligne, resultat, contexte, 'agriculteurs', 'agriculteur_id'));
+          detail.appendChild(carteGroupe(ligne, resultat, contexte, 'profils', 'saisi_par'));
         });
 
         var unitesVues = {};
@@ -447,7 +447,7 @@
         var tiers = ficheConservee(contexte[tableTiers], r[colonneTiers]);
         var texte = dateFrancaise(r.date_prix) + ' — ' +
                     nombreFrancais(r.prix_unitaire_ht) + ' ' + ligne.unite.libelle +
-                    ' — ' + (tiers ? tiers.nom : 'fiche non retrouvée');
+                    ' — relevé par ' + (tiers ? tiers.nom : 'compte non retrouvé');
         var item = element('li', null, texte);
 
         if (ligne.calculable && resultat.seuilAtypique !== null) {
