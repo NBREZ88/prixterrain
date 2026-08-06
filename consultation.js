@@ -321,55 +321,20 @@
   // -------------------------------------------------------------------------
   // Écran
   // -------------------------------------------------------------------------
-  function afficherConsultation(zone, compte) {
+  function afficherFicheProduit(zone, compte, parametres) {
+    var produit = parametres.fiche;
     var contexte = null;
     var reglages = null;
 
-    zone.innerHTML = '';
-    var bandeau = element('header', 'bandeau');
-    bandeau.appendChild(element('h1', null, 'Prix par produit'));
-    zone.appendChild(bandeau);
-
-    var champ = element('div', 'champ');
-    champ.appendChild(element('span', 'etiquette', 'Produit'));
-    var recherche = element('input', 'saisie');
-    recherche.type = 'text';
-    recherche.placeholder = 'Nom du produit';
-    champ.appendChild(recherche);
-    var propositions = element('div', 'propositions');
-    propositions.style.display = 'none';
-    champ.appendChild(propositions);
-    zone.appendChild(champ);
-
     var detail = element('div');
+    zone.innerHTML = '';
     zone.appendChild(detail);
+    detail.appendChild(element('p', 'appui', 'Lecture des relevés…'));
 
     Promise.all([chargerContexte(), chargerReglages()]).then(function (r) {
       contexte = r[0];
       reglages = r[1];
-    });
-
-    recherche.addEventListener('input', function () {
-      var texte = recherche.value.trim();
-      if (texte.length < 3) {
-        propositions.style.display = 'none';
-        propositions.innerHTML = '';
-        return;
-      }
-      A.rechercherFiches('produit', texte, 8).then(function (lignes) {
-        if (recherche.value.trim() !== texte) return;
-        propositions.innerHTML = '';
-        propositions.style.display = 'block';
-        if (!lignes.length) propositions.appendChild(element('p', 'aucune', 'Rien de connu sous ce nom.'));
-        lignes.forEach(function (ligne) {
-          propositions.appendChild(bouton('proposition', ligne.nom, function () {
-            recherche.value = '';
-            propositions.style.display = 'none';
-            propositions.innerHTML = '';
-            afficherProduit(ligne);
-          }));
-        });
-      });
+      afficherProduit(produit);
     });
 
     function afficherProduit(produit) {
@@ -481,5 +446,5 @@
     bouton: bouton
   };
 
-  A.afficherConsultation = afficherConsultation;
+  A.afficherFicheProduit = afficherFicheProduit;
 })(window);

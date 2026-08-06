@@ -264,7 +264,7 @@
         alerte.style.display = 'block';
       }
 
-      zone.appendChild(bouton('enregistrer', 'Enregistrer ce relevé', function () {
+      var boutonEnregistrer = bouton('enregistrer', 'Enregistrer ce relevé', function () {
         var fournisseur = champFournisseur.lire();
         var produit = champProduit.lire();
         if (!fournisseur) return signaler('Indiquez le fournisseur.');
@@ -292,7 +292,9 @@
           listeUnites.value = '';
           majUnite();
         }).catch(function (erreur) { signaler(A.messageSimple(erreur)); });
-      }));
+      });
+      zone.appendChild(boutonEnregistrer);
+      zone.appendChild(bouton('lien', 'Revenir à l\'accueil', function () { A.naviguer('accueil'); }));
 
       majUnite();
     });

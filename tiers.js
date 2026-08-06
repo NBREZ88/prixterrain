@@ -22,62 +22,96 @@
     }
   };
 
-  function afficherTiers(zone, compte) {
+  function afficherListeFournisseurs(zone, compte) {
     var C = A.calculs;
     var element = C.element;
     var bouton = C.bouton;
 
-    var typeCourant = 'fournisseur';
-    var contexte = null;
-    var reglages = null;
+    zone.innerHTML = '';
+    var recherche = element('div', 'recherche');
+    var champ = element('input', 'champ-recherche');
+    champ.type = 'search';
+    champ.placeholder = 'Chercher un fournisseur…';
+    recherche.appendChild(champ);
+    zone.appendChild(recherche);
 
-    function dessiner() {
-      zone.innerHTML = '';
-      var reglage = TIERS[typeCourant];
+    var liste = element('div');
+    liste.appendChild(element('p', 'appui', 'Lecture…'));
+    zone.appendChild(liste);
 
-      var bandeau = element('header', 'bandeau');
-      bandeau.appendChild(element('h1', null, reglage.titre));
-      zone.appendChild(bandeau);
-
-      var champ = element('div', 'champ');
-      champ.appendChild(element('span', 'etiquette', reglage.libelle));
-      var recherche = element('input', 'saisie');
-      recherche.type = 'text';
-      recherche.placeholder = reglage.exemple;
-      champ.appendChild(recherche);
-      var propositions = element('div', 'propositions');
-      propositions.style.display = 'none';
-      champ.appendChild(propositions);
-      zone.appendChild(champ);
-
-      var detail = element('div');
-      zone.appendChild(detail);
-
-      recherche.addEventListener('input', function () {
-        var texte = recherche.value.trim();
-        if (texte.length < 3) {
-          propositions.style.display = 'none';
-          propositions.innerHTML = '';
-          return;
-        }
-        A.rechercherFiches(typeCourant, texte, 8).then(function (lignes) {
-          if (recherche.value.trim() !== texte) return;
-          propositions.innerHTML = '';
-          propositions.style.display = 'block';
-          if (!lignes.length) propositions.appendChild(element('p', 'aucune', 'Rien de connu sous ce nom.'));
-          lignes.forEach(function (ligne) {
-            propositions.appendChild(bouton('proposition', ligne.nom, function () {
-              recherche.value = '';
-              propositions.style.display = 'none';
-              propositions.innerHTML = '';
-              afficherFiche(ligne, reglage, detail);
-            }));
-          });
+    Promise.all([C.chargerContexte(), A.relevesRetenus(), A.bd.fournisseur.toArray()])
+      .then(function (r) {
+        var contexte = r[0];
+        var compte_releves = {};
+        var dernier = {};
+        r[1].forEach(function (x) {
+          var f = C.ficheConservee(contexte.fournisseurs, x.fournisseur_id);
+          if (!f) return;
+          compte_releves[f.id] = (compte_releves[f.id] || 0) + 1;
+          if (!dernier[f.id] || String(x.date_prix) > String(dernier[f.id])) dernier[f.id] = x.date_prix;
         });
-      });
-    }
 
-    function afficherFiche(fiche, reglage, detail) {
+        var fiches = r[2].filter(function (f) { return !f.fusionne_vers; });
+
+        function dessiner(filtre) {
+          liste.innerHTML = '';
+          var visibles = fiches.filter(function (f) {
+            if (!filtre) return true;
+            return A.normaliserLibelle(f.nom).indexOf(A.normaliserLibelle(filtre)) >= 0;
+          });
+          visibles.sort(function (a, b) {
+            var ca = compte_releves[a.id] || 0, cb = compte_releves[b.id] || 0;
+            if (ca !== cb) return cb - ca;
+            return a.nom.localeCompare(b.nom, 'fr');
+          });
+
+          if (!visibles.length) {
+            liste.appendChild(element('p', 'vide',
+              fiches.length ? 'Aucun fournisseur sous ce nom.'
+                            : 'Aucun fournisseur pour l\'instant. Ils se créent à la saisie d\'un prix.'));
+            return;
+          }
+
+          visibles.forEach(function (f) {
+            var n = compte_releves[f.id] || 0;
+            var c = bouton('carte', '', function () { A.naviguer('fournisseur', { fiche: f }); });
+            var haut = element('div', 'carte-haut');
+            haut.appendChild(element('span', 'carte-titre', f.nom));
+            haut.appendChild(element('span', 'carte-compte', String(n)));
+            c.appendChild(haut);
+            var bas = element('div', 'carte-bas');
+            bas.appendChild(element('span', 'carte-fournisseur',
+              n ? (n > 1 ? n + ' relevés' : '1 relevé') : 'aucun relevé'));
+            if (dernier[f.id]) bas.appendChild(element('span', 'carte-date',
+              'dernier : ' + C.dateFrancaise(dernier[f.id])));
+            c.appendChild(bas);
+            liste.appendChild(c);
+          });
+        }
+
+        dessiner('');
+        champ.addEventListener('input', function () { dessiner(champ.value.trim()); });
+      });
+  }
+
+  function afficherFicheFournisseur(zone, compte, parametres) {
+    var C = A.calculs;
+    var detail = C.element('div');
+    zone.innerHTML = '';
+    zone.appendChild(detail);
+    detail.appendChild(C.element('p', 'appui', 'Lecture des relevés…'));
+
+    Promise.all([C.chargerContexte(), C.chargerReglages()]).then(function (r) {
+      contexteGlobal = r[0];
+      reglagesGlobal = r[1];
+      afficherFiche(parametres.fiche, TIERS.fournisseur, detail);
+    });
+  }
+
+  var contexteGlobal = null;
+  var reglagesGlobal = null;
+
+  function afficherFiche(fiche, reglage, detail) {
       var C = A.calculs;
       var element = C.element;
 
@@ -86,7 +120,7 @@
 
       A.relevesRetenus().then(function (tous) {
         var siens = tous.filter(function (r) {
-          var t = C.ficheConservee(contexte[reglage.table], r[reglage.colonne]);
+          var t = C.ficheConservee(contexteGlobal[reglage.table], r[reglage.colonne]);
           return t && t.id === fiche.id;
         });
 
@@ -104,7 +138,7 @@
         var autres = {};
         var datePlusAncienne = null;
         siens.forEach(function (r) {
-          var a = C.ficheConservee(contexte[reglage.autreTable], r[reglage.autreColonne]);
+          var a = C.ficheConservee(contexteGlobal[reglage.autreTable], r[reglage.autreColonne]);
           if (a) autres[a.nom] = true;
           if (!datePlusAncienne || r.date_prix < datePlusAncienne) datePlusAncienne = r.date_prix;
         });
@@ -119,7 +153,7 @@
         // Un bloc par produit conservé.
         var parProduit = {};
         siens.forEach(function (r) {
-          var p = C.ficheConservee(contexte.produits, r.produit_id);
+          var p = C.ficheConservee(contexteGlobal.produits, r.produit_id);
           var id = p ? p.id : 'inconnu';
           if (!parProduit[id]) parProduit[id] = { produit: p, releves: [] };
           parProduit[id].releves.push(r);
@@ -138,7 +172,7 @@
 
         blocs.forEach(function (bloc) {
           var famille = bloc.produit ? bloc.produit.famille_code : '';
-          var resultat = C.calculerAgregats(bloc.releves, contexte, reglages, famille,
+          var resultat = C.calculerAgregats(bloc.releves, contexteGlobal, reglagesGlobal, famille,
             { grouper: function () { return null; } });
 
           ecartes += bloc.releves.length - resultat.retenus.length;
@@ -164,7 +198,7 @@
 
             var liste = element('ul', 'liste-releves');
             ligne.releves.forEach(function (r) {
-              var autre = C.ficheConservee(contexte[reglage.autreTable], r[reglage.autreColonne]);
+              var autre = C.ficheConservee(contexteGlobal[reglage.autreTable], r[reglage.autreColonne]);
               var item = element('li', null,
                 C.dateFrancaise(r.date_prix) + ' — ' +
                 C.nombreFrancais(r.prix_unitaire_ht) + ' ' + ligne.unite.libelle +
@@ -193,11 +227,11 @@
           [['duree_validite', famille], ['anciennete_exclusion', famille],
            ['nombre_minimal_releves', ''], ['decote_mensuelle', ''], ['ecart_atypique', '']]
             .forEach(function (paire) {
-              if (reglages.valeur(paire[0], paire[1]) !== null) return;
+              if (reglagesGlobal.valeur(paire[0], paire[1]) !== null) return;
               var cle = paire[0] + '|' + paire[1];
               if (reglagesSignales[cle]) return;
               reglagesSignales[cle] = true;
-              detail.insertBefore(C.encartReglageManquant(reglages, paire[0], paire[1]),
+              detail.insertBefore(C.encartReglageManquant(reglagesGlobal, paire[0], paire[1]),
                                   detail.children[1]);
             });
         });
@@ -209,12 +243,6 @@
       });
     }
 
-    Promise.all([A.calculs.chargerContexte(), A.calculs.chargerReglages()]).then(function (r) {
-      contexte = r[0];
-      reglages = r[1];
-      dessiner();
-    });
-  }
-
-  A.afficherTiers = afficherTiers;
+  A.afficherListeFournisseurs = afficherListeFournisseurs;
+  A.afficherFicheFournisseur = afficherFicheFournisseur;
 })(window);
