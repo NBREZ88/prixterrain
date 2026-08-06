@@ -80,6 +80,7 @@
   .titre-section { margin: 1.4rem 0 .6rem; font-weight: 600; color: #2f6f3e;
                    border-bottom: 1px solid #ececec; padding-bottom: .2rem; }
   .bouton-etroit { width: auto; padding: .7rem 1.1rem; font-size: 1rem; }
+  .pied-reglages { margin-top: 1.5rem; }
 </style>
 </head>
 <body>
@@ -161,16 +162,23 @@ if ('serviceWorker' in navigator) {
       { nom: 'saisie',        libelle: 'Saisie',   afficher: A.afficherSaisie },
       { nom: 'consultation',  libelle: 'Prix',     afficher: A.afficherConsultation },
       { nom: 'tiers',         libelle: 'Qui',      afficher: A.afficherTiers },
-      { nom: 'reglages',      libelle: 'Réglages', afficher: A.afficherReglages },
+      { nom: 'reglages',      libelle: 'Réglages', afficher: A.afficherReglages, reserve: 'administrateur' },
       { nom: 'rapprochement', libelle: 'Doublons', afficher: A.afficherRapprochement }
     ];
+
+    var visibles = ecrans.filter(function (ecran) {
+      return !ecran.reserve || compte.role === ecran.reserve;
+    });
+    if (!visibles.some(function (e) { return e.nom === ecranCourant; })) {
+      ecranCourant = visibles[0].nom;
+    }
 
     function dessiner() {
       zone.innerHTML = '';
 
       var menu = document.createElement('div');
       menu.className = 'menu';
-      ecrans.forEach(function (ecran) {
+      visibles.forEach(function (ecran) {
         var onglet = document.createElement('button');
         onglet.type = 'button';
         onglet.textContent = ecran.libelle;
@@ -195,7 +203,7 @@ if ('serviceWorker' in navigator) {
       pied.appendChild(sortir);
       zone.appendChild(pied);
 
-      ecrans.forEach(function (ecran) {
+      visibles.forEach(function (ecran) {
         if (ecran.nom === ecranCourant) ecran.afficher(contenu, compte);
       });
     }

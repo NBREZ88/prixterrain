@@ -19,7 +19,6 @@
     var C = A.calculs;
     var element = C.element;
     var bouton = C.bouton;
-    var responsable = compte.role === 'administrateur';
 
     function dessiner() {
       zone.innerHTML = '';
@@ -32,11 +31,6 @@
         'Ces valeurs commandent le calcul des prix moyens affichés dans les écrans Prix et Qui. ' +
         'Une valeur laissée vide n\'empêche rien : la conduite tenue à défaut est indiquée sous chaque ligne.'));
 
-      if (!responsable) {
-        zone.appendChild(element('p', 'alerte',
-          'Seul un responsable peut modifier ces valeurs. Vous pouvez les consulter.'));
-      }
-
       var liste = element('div');
       liste.appendChild(element('p', null, 'Lecture des réglages…'));
       zone.appendChild(liste);
@@ -45,6 +39,7 @@
         lignes.sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); });
         liste.innerHTML = '';
 
+        var champs = [];
         var familleCourante = '@';
         lignes.forEach(function (ligne) {
           var famille = ligne.famille_code || '';
@@ -53,9 +48,11 @@
             liste.appendChild(element('p', 'titre-section',
               famille ? libelleFamille(famille) : 'Valables pour toutes les familles'));
           }
-          liste.appendChild(carteReglage(ligne));
+          var carte = carteReglage(ligne, champs);
+          liste.appendChild(carte);
         });
 
+        liste.appendChild(blocEnregistrement(champs));
         liste.appendChild(blocJournal());
       });
     }
@@ -65,7 +62,11 @@
       return libellesFamille[code] || code;
     }
 
-    function carteReglage(ligne) {
+    function decimales(ligne) {
+      return ligne.cle === 'decote_mensuelle' ? 2 : 0;
+    }
+
+    function carteReglage(ligne, champs) {
       var carte = element('div', 'groupe');
       carte.appendChild(element('p', 'titre-bloc', ligne.libelle));
 
@@ -76,89 +77,136 @@
         : 'Non renseigné';
       carte.appendChild(etat);
 
-      if (!renseigne) {
-        carte.appendChild(element('p', 'manquant-suite', ligne.conduite_si_vide));
-      }
-      if (AIDES[ligne.cle]) {
-        carte.appendChild(element('p', 'manquant-suite', AIDES[ligne.cle]));
-      }
+      if (!renseigne) carte.appendChild(element('p', 'manquant-suite', ligne.conduite_si_vide));
+      if (AIDES[ligne.cle]) carte.appendChild(element('p', 'manquant-suite', AIDES[ligne.cle]));
       if (ligne.valeur_min !== null && ligne.valeur_max !== null) {
         carte.appendChild(element('p', 'manquant-suite',
           'Valeur acceptée entre ' + C.nombreFrancais(ligne.valeur_min, decimales(ligne)) +
-          ' et ' + C.nombreFrancais(ligne.valeur_max, decimales(ligne)) + '.'));
+          ' et ' + C.nombreFrancais(ligne.valeur_max, decimales(ligne)) +
+          ', ou vide pour ne rien imposer.'));
       }
-
-      if (!responsable) return carte;
-
-      var alerte = element('p', 'alerte');
-      alerte.style.display = 'none';
 
       var saisie = element('input', 'saisie');
       saisie.type = 'text';
       saisie.inputMode = 'decimal';
       saisie.placeholder = 'à renseigner';
       if (renseigne) saisie.value = C.nombreFrancais(ligne.valeur, decimales(ligne));
+      carte.appendChild(saisie);
 
-      var ligneAction = element('div', 'ligne-prix');
-      ligneAction.appendChild(saisie);
-      ligneAction.appendChild(bouton('enregistrer bouton-etroit', 'Enregistrer', function () {
-        var brut = saisie.value.trim().replace(',', '.');
-        if (!brut) { signaler('Entrez une valeur, ou utilisez « Effacer cette valeur ».'); return; }
-        var valeur = Number(brut);
-        if (!isFinite(valeur)) { signaler('Cette valeur n\'est pas un nombre.'); return; }
-        if (ligne.valeur_min !== null && valeur < ligne.valeur_min) {
-          signaler('Valeur trop basse : le minimum est ' + C.nombreFrancais(ligne.valeur_min, decimales(ligne)) + '.');
-          return;
-        }
-        if (ligne.valeur_max !== null && valeur > ligne.valeur_max) {
-          signaler('Valeur trop haute : le maximum est ' + C.nombreFrancais(ligne.valeur_max, decimales(ligne)) + '.');
-          return;
-        }
-        ecrire(ligne, valeur, signaler);
-      }));
-      carte.appendChild(ligneAction);
-
-      if (renseigne) {
-        carte.appendChild(bouton('lien', 'Effacer cette valeur', function () {
-          ecrire(ligne, null, signaler);
-        }));
-      }
-
+      var alerte = element('p', 'alerte');
+      alerte.style.display = 'none';
       carte.appendChild(alerte);
 
-      function signaler(texte) {
-        alerte.textContent = texte;
-        alerte.style.display = 'block';
-      }
-
+      champs.push({ ligne: ligne, saisie: saisie, alerte: alerte });
       return carte;
     }
 
-    function decimales(ligne) {
-      return ligne.cle === 'decote_mensuelle' ? 2 : 0;
+    // Contrôle de toutes les lignes avant la moindre écriture : rien ne part
+    // tant qu'une valeur est refusée, pour ne pas laisser un écran à moitié
+    // enregistré.
+    function verifier(champs) {
+      var retenus = [];
+      var refus = 0;
+
+      champs.forEach(function (champ) {
+        champ.alerte.style.display = 'none';
+        var ligne = champ.ligne;
+        var brut = champ.saisie.value.trim().replace(',', '.');
+        var valeur = brut === '' ? null : Number(brut);
+
+        if (brut !== '' && !isFinite(valeur)) {
+          champ.alerte.textContent = 'Cette valeur n\'est pas un nombre.';
+          champ.alerte.style.display = 'block';
+          refus++;
+          return;
+        }
+        if (valeur !== null && ligne.valeur_min !== null && valeur < ligne.valeur_min) {
+          champ.alerte.textContent = 'Valeur trop basse : le minimum est ' +
+            C.nombreFrancais(ligne.valeur_min, decimales(ligne)) + '.';
+          champ.alerte.style.display = 'block';
+          refus++;
+          return;
+        }
+        if (valeur !== null && ligne.valeur_max !== null && valeur > ligne.valeur_max) {
+          champ.alerte.textContent = 'Valeur trop haute : le maximum est ' +
+            C.nombreFrancais(ligne.valeur_max, decimales(ligne)) + '.';
+          champ.alerte.style.display = 'block';
+          refus++;
+          return;
+        }
+
+        var actuelle = (ligne.valeur === null || ligne.valeur === undefined) ? null : Number(ligne.valeur);
+        if (valeur !== actuelle) retenus.push({ ligne: ligne, valeur: valeur });
+      });
+
+      return { refus: refus, retenus: retenus };
+    }
+
+    function blocEnregistrement(champs) {
+      var bloc = element('div', 'pied-reglages');
+      var message = element('p', 'confirmation');
+      message.style.display = 'none';
+      var alerte = element('p', 'alerte');
+      alerte.style.display = 'none';
+
+      bloc.appendChild(message);
+      bloc.appendChild(alerte);
+      bloc.appendChild(bouton('enregistrer', 'Enregistrer les réglages', function () {
+        var bouton = this;
+        message.style.display = 'none';
+        alerte.style.display = 'none';
+
+        var controle = verifier(champs);
+        if (controle.refus) {
+          alerte.textContent = controle.refus > 1
+            ? controle.refus + ' valeurs sont refusées. Rien n\'a été enregistré.'
+            : 'Une valeur est refusée. Rien n\'a été enregistré.';
+          alerte.style.display = 'block';
+          return;
+        }
+        if (!controle.retenus.length) {
+          message.textContent = 'Aucun changement à enregistrer.';
+          message.style.display = 'block';
+          return;
+        }
+        if (!global.navigator.onLine) {
+          alerte.textContent = "L'équipe n'est pas joignable pour l'instant. Les réglages se modifient avec du réseau.";
+          alerte.style.display = 'block';
+          return;
+        }
+
+        bouton.disabled = true;
+        bouton.textContent = 'Un instant…';
+
+        controle.retenus.reduce(function (chaine, item) {
+          return chaine.then(function () { return ecrire(item.ligne, item.valeur); });
+        }, Promise.resolve())
+          .then(function () { return A.synchroniser(); })
+          .then(function () {
+            dessiner();
+            zone.scrollIntoView({ block: 'start' });
+          })
+          .catch(function (erreur) {
+            bouton.disabled = false;
+            bouton.textContent = 'Enregistrer les réglages';
+            alerte.textContent = A.messageSimple(erreur);
+            alerte.style.display = 'block';
+          });
+      }));
+      return bloc;
     }
 
     // L'écriture passe par la base d'équipe : un réglage engage les dix
     // conseillers, il ne se met pas en file d'attente sur un seul appareil.
-    function ecrire(ligne, valeur, signaler) {
-      if (!global.navigator.onLine) {
-        signaler("L'équipe n'est pas joignable pour l'instant. Les réglages se modifient avec du réseau.");
-        return;
-      }
+    function ecrire(ligne, valeur) {
       var requete = A.base.from('reglage').update({ valeur: valeur }).eq('cle', ligne.cle);
       requete = ligne.famille_code
         ? requete.eq('famille_code', ligne.famille_code)
         : requete.is('famille_code', null);
 
-      requete.then(function (reponse) {
+      return requete.then(function (reponse) {
         if (reponse.error) throw reponse.error;
         return A.bd.reglage.put(Object.assign({}, ligne, { valeur: valeur }));
-      }).then(function () {
-        return A.synchroniser();
-      }).then(function () {
-        dessiner();
-      }).catch(function (erreur) {
-        signaler(A.messageSimple(erreur));
       });
     }
 
