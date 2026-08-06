@@ -89,6 +89,13 @@
 <div id="application"><p>Un instant…</p></div>
 
 <script>
+// Retient l'invitation d'installation du navigateur pour l'écran Compte.
+window.PrixTerrainInstallation = { invite: null };
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  window.PrixTerrainInstallation.invite = e;
+});
+
 // Garde une copie de l'application sur l'appareil, pour l'ouvrir sans réseau.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
@@ -107,10 +114,10 @@ if ('serviceWorker' in navigator) {
 <script src="tiers.js"></script>
 <script src="reglages.js"></script>
 <script src="export.js"></script>
+<script src="comptes.js"></script>
 
 <script>
-// Écran provisoire du lot 2 : ouverture de session et état de l'appareil.
-// L'écran de saisie du lot 3 prendra sa place.
+// PrixTerrain — ouverture de session et passage d'un écran à l'autre.
 (function () {
   'use strict';
   var A = window.PrixTerrain;
@@ -122,59 +129,137 @@ if ('serviceWorker' in navigator) {
     });
   }
 
+  // ---------------------------------------------------------------------
+  // Ouverture de session
+  // ---------------------------------------------------------------------
   function ecranSession(alerte) {
     zone.innerHTML =
       '<h1>PrixTerrain</h1>' +
+      '<p class="appui">Relevé et suivi des prix d\'intrants agricoles.</p>' +
       (alerte ? '<p class="alerte">' + echapper(alerte) + '</p>' : '') +
       '<div class="champ"><span class="etiquette">Votre adresse</span>' +
-      '<input class="saisie" type="email" id="adresse"></div>' +
+      '<input class="saisie" type="email" id="adresse" autocomplete="username"></div>' +
       '<div class="champ"><span class="etiquette">Votre mot de passe</span>' +
-      '<input class="saisie" type="password" id="motdepasse"></div>' +
-      '<button class="enregistrer" id="entrer">Entrer</button>';
+      '<input class="saisie" type="password" id="motdepasse" autocomplete="current-password"></div>' +
+      '<button class="enregistrer" id="entrer">Entrer</button>' +
+      '<p class="manquant-suite">Mot de passe oublié ou perdu : demandez-en un nouveau au ' +
+      'responsable de l\'application. Aucun courriel n\'est envoyé par PrixTerrain.</p>';
 
-    document.getElementById('entrer').addEventListener('click', function () {
-      var bouton = this;
-      bouton.disabled = true;
-      bouton.textContent = 'Un instant…';
-      var adresse = document.getElementById('adresse').value.trim();
-      var motDePasse = document.getElementById('motdepasse').value;
+    var champAdresse = document.getElementById('adresse');
+    var champMotDePasse = document.getElementById('motdepasse');
+    var boutonEntrer = document.getElementById('entrer');
+
+    champMotDePasse.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') boutonEntrer.click();
+    });
+
+    boutonEntrer.addEventListener('click', function () {
+      var adresse = champAdresse.value.trim();
+      var motDePasse = champMotDePasse.value;
+      if (!adresse || !motDePasse) {
+        ecranSession('Entrez votre adresse et votre mot de passe.');
+        return;
+      }
+      if (!navigator.onLine) {
+        ecranSession("Pas de réseau pour l'instant. La première ouverture de session en demande.");
+        return;
+      }
+
+      boutonEntrer.disabled = true;
+      boutonEntrer.textContent = 'Un instant…';
 
       A.base.auth.signInWithPassword({ email: adresse, password: motDePasse })
         .then(function (r) {
           if (r.error) throw r.error;
-          return A.base.from('profil').select('*').eq('id', r.data.user.id).limit(1);
+          return A.base.from('profil').select('*').eq('id', r.data.user.id).limit(1)
+            .then(function (f) {
+              if (f.error) throw f.error;
+              return { utilisateur: r.data.user, fiche: f.data[0] || null };
+            });
         })
-        .then(function (r) {
-          if (r.error) throw r.error;
-          if (!r.data.length) throw new Error("Votre fiche de conseiller n'existe pas encore.");
-          return A.memoriserCompte(r.data[0]).then(function () { return r.data[0]; });
-        })
-        .then(function (compte) {
-          A.demarrerSynchronisation();
-          return A.synchroniser().then(function () { ouvrirApplication(compte); });
+        .then(function (retour) {
+          if (retour.fiche) return entrer(retour.fiche);
+          return ecranPremiereFois(retour.utilisateur);
         })
         .catch(function (erreur) { ecranSession(A.messageSimple(erreur)); });
     });
   }
 
-  function ouvrirApplication(compte) {
-    var ecranCourant = 'saisie';
+  // Première ouverture d'un compte : la fiche de conseiller se crée ici,
+  // sans intervention du responsable.
+  function ecranPremiereFois(utilisateur) {
+    zone.innerHTML =
+      '<h1>Bienvenue</h1>' +
+      '<p>Votre nom apparaîtra à côté des relevés que vous saisirez, ' +
+      'pour que l\'équipe sache qui a relevé quel prix.</p>' +
+      '<div class="champ"><span class="etiquette">Votre nom et prénom</span>' +
+      '<input class="saisie" type="text" id="nom" placeholder="Marie Dupont"></div>' +
+      '<p class="alerte" id="alerte-nom" style="display:none"></p>' +
+      '<button class="enregistrer" id="valider">Continuer</button>';
 
+    var alerte = document.getElementById('alerte-nom');
+    document.getElementById('valider').addEventListener('click', function () {
+      var nom = document.getElementById('nom').value.trim();
+      if (nom.length < 3) {
+        alerte.textContent = 'Entrez votre nom et votre prénom.';
+        alerte.style.display = 'block';
+        return;
+      }
+      var bouton = this;
+      bouton.disabled = true;
+      bouton.textContent = 'Un instant…';
+
+      A.base.from('profil')
+        .insert({ id: utilisateur.id, nom: nom, courriel: utilisateur.email })
+        .select()
+        .then(function (r) {
+          if (r.error) throw r.error;
+          return entrer(r.data[0]);
+        })
+        .catch(function (erreur) {
+          bouton.disabled = false;
+          bouton.textContent = 'Continuer';
+          alerte.textContent = A.messageSimple(erreur);
+          alerte.style.display = 'block';
+        });
+    });
+  }
+
+  function entrer(fiche) {
+    return A.memoriserCompte(fiche).then(function () {
+      A.demarrerSynchronisation();
+      ouvrirApplication(fiche);
+      return A.synchroniser().then(function () { return rafraichirCompte(fiche); });
+    });
+  }
+
+  // Le rôle peut avoir changé côté équipe depuis la dernière ouverture.
+  function rafraichirCompte(fiche) {
+    return A.bd.profil.get(fiche.id).then(function (aJour) {
+      if (!aJour) return;
+      if (aJour.role === fiche.role && aJour.nom === fiche.nom && aJour.actif === fiche.actif) return;
+      return A.memoriserCompte(aJour).then(function () { ouvrirApplication(aJour); });
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Passage d'un écran à l'autre
+  // ---------------------------------------------------------------------
+  function ouvrirApplication(compte) {
     var ecrans = [
       { nom: 'saisie',        libelle: 'Saisie',   afficher: A.afficherSaisie },
       { nom: 'consultation',  libelle: 'Prix',     afficher: A.afficherConsultation },
       { nom: 'tiers',         libelle: 'Qui',      afficher: A.afficherTiers },
-      { nom: 'reglages',      libelle: 'Réglages', afficher: A.afficherReglages, reserve: 'administrateur' },
+      { nom: 'rapprochement', libelle: 'Doublons', afficher: A.afficherRapprochement },
       { nom: 'export',        libelle: 'Export',   afficher: A.afficherExport },
-      { nom: 'rapprochement', libelle: 'Doublons', afficher: A.afficherRapprochement }
+      { nom: 'reglages',      libelle: 'Réglages', afficher: A.afficherReglages, reserve: 'administrateur' },
+      { nom: 'comptes',       libelle: 'Compte',   afficher: A.afficherComptes }
     ];
 
     var visibles = ecrans.filter(function (ecran) {
       return !ecran.reserve || compte.role === ecran.reserve;
     });
-    if (!visibles.some(function (e) { return e.nom === ecranCourant; })) {
-      ecranCourant = visibles[0].nom;
-    }
+    var ecranCourant = visibles[0].nom;
 
     function dessiner() {
       zone.innerHTML = '';
@@ -194,18 +279,6 @@ if ('serviceWorker' in navigator) {
       var contenu = document.createElement('div');
       zone.appendChild(contenu);
 
-      var pied = document.createElement('div');
-      pied.className = 'pied';
-      var sortir = document.createElement('button');
-      sortir.type = 'button';
-      sortir.className = 'lien';
-      sortir.textContent = 'Fermer la session sur cet appareil';
-      sortir.addEventListener('click', function () {
-        A.base.auth.signOut().then(A.oublierCompte).then(function () { ecranSession(null); });
-      });
-      pied.appendChild(sortir);
-      zone.appendChild(pied);
-
       visibles.forEach(function (ecran) {
         if (ecran.nom === ecranCourant) ecran.afficher(contenu, compte);
       });
@@ -214,14 +287,19 @@ if ('serviceWorker' in navigator) {
     dessiner();
   }
 
+  // ---------------------------------------------------------------------
+  // Démarrage
+  // ---------------------------------------------------------------------
   if (!A.configurationComplete) {
     zone.innerHTML = '<p class="alerte">L\'adresse de la base d\'équipe n\'est pas renseignée sur cet appareil.</p>';
     return;
   }
 
   A.compteLocal().then(function (compte) {
-    if (compte) { A.demarrerSynchronisation(); ouvrirApplication(compte); }
-    else ecranSession(null);
+    if (!compte) { ecranSession(null); return; }
+    A.demarrerSynchronisation();
+    ouvrirApplication(compte);
+    rafraichirCompte(compte);
   }).catch(function () {
     zone.innerHTML = '<p class="alerte">Cet appareil refuse de conserver les saisies. ' +
                      'Ouvrez l\'application depuis son adresse internet plutôt que depuis un fichier.</p>';
