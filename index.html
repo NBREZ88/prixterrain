@@ -77,6 +77,9 @@
   .legende { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: .4rem; font-size: .95rem; }
   .legende-entree { display: flex; align-items: center; gap: .35rem; }
   .pastille { width: .8rem; height: .8rem; border-radius: 50%; display: inline-block; }
+  .titre-section { margin: 1.4rem 0 .6rem; font-weight: 600; color: #2f6f3e;
+                   border-bottom: 1px solid #ececec; padding-bottom: .2rem; }
+  .bouton-etroit { width: auto; padding: .7rem 1.1rem; font-size: 1rem; }
 </style>
 </head>
 <body>
@@ -100,6 +103,7 @@ if ('serviceWorker' in navigator) {
 <script src="rapprochement.js"></script>
 <script src="consultation.js"></script>
 <script src="tiers.js"></script>
+<script src="reglages.js"></script>
 
 <script>
 // Écran provisoire du lot 2 : ouverture de session et état de l'appareil.
@@ -157,6 +161,7 @@ if ('serviceWorker' in navigator) {
       { nom: 'saisie',        libelle: 'Saisie',   afficher: A.afficherSaisie },
       { nom: 'consultation',  libelle: 'Prix',     afficher: A.afficherConsultation },
       { nom: 'tiers',         libelle: 'Qui',      afficher: A.afficherTiers },
+      { nom: 'reglages',      libelle: 'Réglages', afficher: A.afficherReglages },
       { nom: 'rapprochement', libelle: 'Doublons', afficher: A.afficherRapprochement }
     ];
 
