@@ -81,6 +81,7 @@
                    border-bottom: 1px solid #ececec; padding-bottom: .2rem; }
   .bouton-etroit { width: auto; padding: .7rem 1.1rem; font-size: 1rem; }
   .pied-reglages { margin-top: 1.5rem; }
+  .etiquette-case { font-size: 1rem; }
 </style>
 </head>
 <body>
@@ -105,6 +106,7 @@ if ('serviceWorker' in navigator) {
 <script src="consultation.js"></script>
 <script src="tiers.js"></script>
 <script src="reglages.js"></script>
+<script src="export.js"></script>
 
 <script>
 // Écran provisoire du lot 2 : ouverture de session et état de l'appareil.
@@ -163,6 +165,7 @@ if ('serviceWorker' in navigator) {
       { nom: 'consultation',  libelle: 'Prix',     afficher: A.afficherConsultation },
       { nom: 'tiers',         libelle: 'Qui',      afficher: A.afficherTiers },
       { nom: 'reglages',      libelle: 'Réglages', afficher: A.afficherReglages, reserve: 'administrateur' },
+      { nom: 'export',        libelle: 'Export',   afficher: A.afficherExport },
       { nom: 'rapprochement', libelle: 'Doublons', afficher: A.afficherRapprochement }
     ];
 

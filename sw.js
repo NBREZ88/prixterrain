@@ -3,7 +3,7 @@
 // À chaque lot livré, changer le numéro de VERSION ci-dessous : c'est ce qui
 // déclenche le remplacement de la copie sur les appareils des conseillers.
 
-var VERSION = 'prixterrain-8b';
+var VERSION = 'prixterrain-9';
 
 var FICHIERS = [
   './',
@@ -15,6 +15,7 @@ var FICHIERS = [
   './consultation.js',
   './tiers.js',
   './reglages.js',
+  './export.js',
   './dexie.min.js',
   './supabase.js',
   './manifeste.json',

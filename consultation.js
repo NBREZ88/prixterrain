@@ -92,7 +92,8 @@
       A.bd.fournisseur.toArray(),
       A.bd.agriculteur.toArray(),
       A.bd.unite_prix.toArray(),
-      A.bd.famille_produit.toArray()
+      A.bd.famille_produit.toArray(),
+      A.bd.profil.toArray()
     ]).then(function (r) {
       function parIdentifiant(lignes, cle) {
         var t = {};
@@ -104,7 +105,8 @@
         fournisseurs: parIdentifiant(r[1]),
         agriculteurs: parIdentifiant(r[2]),
         unites: parIdentifiant(r[3], 'code'),
-        familles: parIdentifiant(r[4], 'code')
+        familles: parIdentifiant(r[4], 'code'),
+        profils: parIdentifiant(r[5])
       };
     });
   }
