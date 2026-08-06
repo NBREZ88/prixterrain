@@ -99,6 +99,7 @@ if ('serviceWorker' in navigator) {
 <script src="saisie.js"></script>
 <script src="rapprochement.js"></script>
 <script src="consultation.js"></script>
+<script src="tiers.js"></script>
 
 <script>
 // Écran provisoire du lot 2 : ouverture de session et état de l'appareil.
@@ -155,6 +156,7 @@ if ('serviceWorker' in navigator) {
     var ecrans = [
       { nom: 'saisie',        libelle: 'Saisie',   afficher: A.afficherSaisie },
       { nom: 'consultation',  libelle: 'Prix',     afficher: A.afficherConsultation },
+      { nom: 'tiers',         libelle: 'Qui',      afficher: A.afficherTiers },
       { nom: 'rapprochement', libelle: 'Doublons', afficher: A.afficherRapprochement }
     ];
 

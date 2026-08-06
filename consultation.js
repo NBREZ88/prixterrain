@@ -132,7 +132,11 @@
   // -------------------------------------------------------------------------
   // Agrégats
   // -------------------------------------------------------------------------
-  function calculerAgregats(releves, contexte, reglages, famille) {
+  function calculerAgregats(releves, contexte, reglages, famille, options) {
+    var grouper = (options && options.grouper) || function (r, ctx) {
+      var f = ficheConservee(ctx.fournisseurs, r.fournisseur_id);
+      return { id: f ? f.id : 'inconnu', nom: f ? f.nom : 'Fournisseur non retrouvé' };
+    };
     var aujourdhui = new Date();
     var validite = reglages.valeur('duree_validite', famille);
     var exclusion = reglages.valeur('anciennete_exclusion', famille);
@@ -158,13 +162,11 @@
     // Regroupement par fournisseur conservé puis par unité.
     var groupes = {};
     retenus.forEach(function (r) {
-      var f = ficheConservee(contexte.fournisseurs, r.fournisseur_id);
-      var idFournisseur = f ? f.id : 'inconnu';
-      var cle = idFournisseur + '|' + r.unite_code;
+      var g = grouper(r, contexte) || { id: '*', nom: '' };
+      var cle = g.id + '|' + r.unite_code;
       if (!groupes[cle]) {
         groupes[cle] = {
-          fournisseur: f,
-          nomFournisseur: f ? f.nom : 'Fournisseur non retrouvé',
+          nomGroupe: g.nom,
           unite: contexte.unites[r.unite_code] || { code: r.unite_code, libelle: r.unite_code },
           releves: []
         };
@@ -194,7 +196,7 @@
       }
 
       return {
-        nomFournisseur: g.nomFournisseur,
+        nomGroupe: g.nomGroupe,
         unite: g.unite,
         nombre: n,
         plusAncien: plusAncien,
@@ -208,7 +210,7 @@
     });
 
     lignes.sort(function (a, b) {
-      if (a.nomFournisseur !== b.nomFournisseur) return a.nomFournisseur.localeCompare(b.nomFournisseur, 'fr');
+      if (a.nomGroupe !== b.nomGroupe) return a.nomGroupe.localeCompare(b.nomGroupe, 'fr');
       return a.unite.code.localeCompare(b.unite.code);
     });
 
@@ -408,7 +410,7 @@
         }
 
         resultat.lignes.forEach(function (ligne) {
-          detail.appendChild(carteFournisseur(ligne, resultat, contexte));
+          detail.appendChild(carteGroupe(ligne, resultat, contexte, 'agriculteurs', 'agriculteur_id'));
         });
 
         var unitesVues = {};
@@ -421,9 +423,9 @@
       });
     }
 
-    function carteFournisseur(ligne, resultat, contexte) {
+    function carteGroupe(ligne, resultat, contexte, tableTiers, colonneTiers) {
       var carte = element('div', 'groupe');
-      carte.appendChild(element('p', 'titre-bloc', ligne.nomFournisseur));
+      if (ligne.nomGroupe) carte.appendChild(element('p', 'titre-bloc', ligne.nomGroupe));
 
       if (ligne.calculable) {
         carte.appendChild(element('p', 'valeur-moyenne',
@@ -440,10 +442,10 @@
 
       var liste = element('ul', 'liste-releves');
       ligne.releves.forEach(function (r) {
-        var agriculteur = ficheConservee(contexte.agriculteurs, r.agriculteur_id);
+        var tiers = ficheConservee(contexte[tableTiers], r[colonneTiers]);
         var texte = dateFrancaise(r.date_prix) + ' — ' +
                     nombreFrancais(r.prix_unitaire_ht) + ' ' + ligne.unite.libelle +
-                    ' — ' + (agriculteur ? agriculteur.nom : 'agriculteur non retrouvé');
+                    ' — ' + (tiers ? tiers.nom : 'fiche non retrouvée');
         var item = element('li', null, texte);
 
         if (ligne.calculable && resultat.seuilAtypique !== null) {
@@ -464,6 +466,18 @@
       return carte;
     }
   }
+
+  A.calculs = {
+    chargerContexte: chargerContexte,
+    chargerReglages: chargerReglages,
+    calculerAgregats: calculerAgregats,
+    encartReglageManquant: encartReglageManquant,
+    ficheConservee: ficheConservee,
+    dateFrancaise: dateFrancaise,
+    nombreFrancais: nombreFrancais,
+    element: element,
+    bouton: bouton
+  };
 
   A.afficherConsultation = afficherConsultation;
 })(window);
